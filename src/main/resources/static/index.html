@@ -415,7 +415,6 @@
 <div class="overlay" id="overlay"></div>
 
 <script>
-    // DOM 요소
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
     const startButton = document.getElementById('startButton');
@@ -434,6 +433,7 @@
     const userList = document.getElementById('userList');
     const overlay = document.getElementById('overlay');
 
+
     // 변수 초기화
     let localStream;
     let peerConnection;
@@ -442,6 +442,10 @@
     let mySessionId;
     let isChatOpen = false;
     let isUsersOpen = false;
+
+    // 모바일 감지를 위한 변수 추가
+    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 
     // WebRTC 구성
     const configuration = {
@@ -476,6 +480,17 @@
         }
     }
 
+
+    // 패널 닫기 함수 추가
+    function closeAllPanels() {
+        if (isChatOpen) {
+            toggleChatPanel();
+        }
+        if (isUsersOpen) {
+            toggleUsersPanel();
+        }
+    }
+
     // 이벤트 리스너
     startButton.addEventListener('click', startVideo);
     callButton.addEventListener('click', startCall);
@@ -484,10 +499,12 @@
     usersButton.addEventListener('click', toggleUsersPanel);
     closeChat.addEventListener('click', toggleChatPanel);
     closeUsers.addEventListener('click', toggleUsersPanel);
-    overlay.addEventListener('click', () => {
-        if (isChatOpen) toggleChatPanel();
-        if (isUsersOpen) toggleUsersPanel();
-    });
+    overlay.addEventListener('click', closeAllPanels);
+
+    // 모바일에서 터치 이벤트 추가
+    if (isMobile) {
+        overlay.addEventListener('touchstart', closeAllPanels);
+    }
 
     // 채팅 이벤트
     sendButton.addEventListener('click', sendChatMessage);
@@ -521,7 +538,6 @@
             alert('카메라 또는 마이크 접근이 거부되었습니다.');
         }
     }
-
     // 시그널링 서버 연결
     function connectSignaling() {
         const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -598,7 +614,7 @@
         };
     }
 
-    // 채팅 메시지 전송
+    // 채팅 메시지 전송 - 전송 후 채팅 패널 닫기 추가
     function sendChatMessage() {
         const messageText = chatInput.value.trim();
         if (messageText && websocket && websocket.readyState === WebSocket.OPEN) {
@@ -622,6 +638,15 @@
             });
 
             chatInput.value = '';
+
+            // 모바일 환경에서는 메시지 전송 후 채팅 패널 닫기
+            if (isMobile) {
+                setTimeout(() => {
+                    if (isChatOpen) {
+                        toggleChatPanel();
+                    }
+                }, 300); // 메시지가 표시된 후 패널 닫기
+            }
         }
     }
 
@@ -685,7 +710,12 @@
             callBtn.addEventListener('click', () => {
                 selectedUserId = userId;
                 startCall();
-                toggleUsersPanel();
+                // 모바일 환경에서는 통화 시작 후 사용자 패널 닫기
+                if (isMobile) {
+                    closeAllPanels();
+                } else {
+                    toggleUsersPanel();
+                }
             });
 
             li.appendChild(avatar);
@@ -694,6 +724,8 @@
             userList.appendChild(li);
         }
     }
+
+
 
     // 사용자 목록에서 제거
     function removeUser(userId) {
@@ -735,6 +767,10 @@
             console.log('ICE 연결 상태 변경:', peerConnection.iceConnectionState);
             if (peerConnection.iceConnectionState === 'connected') {
                 statusDiv.textContent = '통화 연결됨';
+                // 통화 연결 시 모든 패널 닫기
+                if (isMobile) {
+                    closeAllPanels();
+                }
             } else if (peerConnection.iceConnectionState === 'disconnected') {
                 statusDiv.textContent = '통화 연결 끊김';
             } else if (peerConnection.iceConnectionState === 'failed') {
@@ -775,6 +811,11 @@
             hangupButton.disabled = false;
             hangupButton.classList.remove('disabled');
             statusDiv.textContent = '통화 연결 중...';
+
+            // 모바일 환경에서는 통화 시작 후 모든 패널 닫기
+            if (isMobile) {
+                closeAllPanels();
+            }
         } catch (error) {
             console.error('Offer 생성 오류:', error);
             statusDiv.textContent = `통화 연결 오류: ${error.message}`;
@@ -802,6 +843,11 @@
             hangupButton.disabled = false;
             hangupButton.classList.remove('disabled');
             statusDiv.textContent = '통화 연결 중...';
+
+            // 모바일 환경에서는 Offer 처리 후 모든 패널 닫기
+            if (isMobile) {
+                closeAllPanels();
+            }
         } catch (error) {
             console.error('Answer 생성 오류:', error);
             statusDiv.textContent = `통화 응답 오류: ${error.message}`;
@@ -872,12 +918,21 @@
                 // 세로 모드
                 videoContainer.style.height = '';
             }
+
+            // 방향 전환 시 모든 패널 닫기
+            if (isMobile) {
+                closeAllPanels();
+            }
         }, 300);
     });
 
     // iOS Safari 전체 화면 이슈 처리
     function fixIOSViewport() {
         document.documentElement.style.height = `${window.innerHeight}px`;
+        // 화면 크기 변경 시 모바일에서 모든 패널 닫기
+        if (isMobile) {
+            closeAllPanels();
+        }
     }
 
     window.addEventListener('resize', fixIOSViewport);
