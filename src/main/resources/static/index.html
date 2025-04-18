@@ -244,12 +244,12 @@
             cursor: pointer;
         }
 
-        /* 사용자 목록 패널 */
+        /* users-panel의 z-index를 조정하고 높이를 조절합니다 */
         .users-panel {
             position: absolute;
             bottom: 0;
             width: 100%;
-            height: 50%;
+            height: 50%;  /* 기본 높이 */
             background: white;
             z-index: 50;
             border-radius: 20px 20px 0 0;
@@ -258,6 +258,24 @@
             transition: transform 0.3s ease-out;
             display: flex;
             flex-direction: column;
+        }
+
+        /* 모바일 환경에서 패널 높이 조정 */
+        @media (max-width: 480px) {
+            .users-panel {
+                height: 40%;  /* 모바일에서는 더 작게 */
+            }
+
+            .chat-panel {
+                height: 50%;  /* 모바일에서는 더 작게 */
+            }
+
+            /* 컨트롤 영역이 항상 보이도록 */
+            .controls {
+                position: sticky;
+                bottom: 0;
+                z-index: 60;  /* 패널보다 높은 z-index */
+            }
         }
 
         .users-panel.active {
@@ -780,6 +798,16 @@
         };
     }
 
+    // 사용자가 목록에서 사용자를 선택했을 때 즉시 패널을 닫습니다
+    const callBtn = document.createElement('button');
+    callBtn.className = 'call-user';
+    callBtn.textContent = '통화';
+    callBtn.addEventListener('click', () => {
+        selectedUserId = userId;
+        closeAllPanels();  // 즉시 모든 패널 닫기
+        startCall();
+    });
+
     // 통화 시작
     async function startCall() {
         if (!selectedUserId && userList.children.length > 0) {
@@ -953,6 +981,11 @@
         if (websocket) {
             websocket.close();
         }
+    });
+
+    // 페이지 로드 시 모든 패널이 닫혀있는지 확인
+    window.addEventListener('load', () => {
+        closeAllPanels();
     });
 </script>
 </body>
