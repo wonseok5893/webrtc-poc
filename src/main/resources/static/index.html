@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>제드 POC</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: #333;
+            background-color: #f5f5f5;
+            overflow-x: hidden;
+            max-width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 12px 15px;
+            background: #4a69bd;
+            color: white;
+            text-align: center;
+            position: relative;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .status-bar {
+            background: #f1f1f1;
+            padding: 8px 15px;
+            font-size: 0.8rem;
+            color: #555;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 120px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .videos-container {
+            width: 100%;
+            position: relative;
+            background: #000;
+            flex: 1;
+        }
+
+        #remoteVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            z-index: 1;
+        }
+
+        .local-video-container {
+            position: absolute;
+            width: 30%;
+            max-width: 150px;
+            right: 15px;
+            top: 15px;
+            z-index: 10;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        #localVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #222;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            background: white;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+        }
+
+        .control-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.3rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            color: white;
+        }
+
+        .start-button {
+            background: #2ecc71;
+        }
+
+        .call-button {
+            background: #3498db;
+        }
+
+        .hangup-button {
+            background: #e74c3c;
+        }
+
+        .chat-button {
+            background: #9b59b6;
+        }
+
+        .users-button {
+            background: #f39c12;
+        }
+
+        .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 채팅 패널 */
+        .chat-panel {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 60%;
+            background: white;
+            z-index: 50;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-panel.active {
+            transform: translateY(0);
+        }
+
+        .chat-header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .chat-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .close-chat {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #555;
+        }
+
+        #chatMessages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-message {
+            max-width: 80%;
+            padding: 10px 12px;
+            border-radius: 18px;
+            position: relative;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+        }
+
+        .chat-message.mine {
+            align-self: flex-end;
+            background-color: #e3f2fd;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-message.others {
+            align-self: flex-start;
+            background-color: #f1f1f1;
+            border-bottom-left-radius: 4px;
+        }
+
+        .sender {
+            font-size: 0.75rem;
+            margin-bottom: 3px;
+            color: #666;
+        }
+
+        .chat-input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #eee;
+            background: #f9f9f9;
+        }
+
+        #chatInput {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            outline: none;
+            font-size: 0.95rem;
+        }
+
+        #sendButton {
+            width: 40px;
+            height: 40px;
+            margin-left: 8px;
+            border-radius: 50%;
+            border: none;
+            background: #4a69bd;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* 사용자 목록 패널 */
+        .users-panel {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 50%;
+            background: white;
+            z-index: 50;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .users-panel.active {
+            transform: translateY(0);
+        }
+
+        .users-header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .users-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .close-users {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #555;
+        }
+
+        #userList {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 15px;
+            list-style: none;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            margin-bottom: 5px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: #ccc;
+            border-radius: 50%;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 500;
+        }
+
+        .call-user {
+            padding: 8px 15px;
+            background: #4a69bd;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 40;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        @media (max-width: 480px) {
+            .control-button {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+
+            .local-video-container {
+                width: 35%;
+                right: 10px;
+                top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>제드 POC</h1>
+</div>
+
+<div id="status" class="status-bar">연결 대기 중...</div>
+
+<div class="main-container">
+    <div class="videos-container">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="local-video-container">
+            <video id="localVideo" autoplay muted playsinline></video>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="startButton" class="control-button start-button">📷</button>
+        <button id="callButton" class="control-button call-button disabled" disabled>📞</button>
+        <button id="hangupButton" class="control-button hangup-button disabled" disabled>❌</button>
+        <button id="chatButton" class="control-button chat-button">💬</button>
+        <button id="usersButton" class="control-button users-button">👥</button>
+    </div>
+</div>
+
+<!-- 채팅 패널 -->
+<div class="chat-panel" id="chatPanel">
+    <div class="chat-header">
+        <h3>채팅</h3>
+        <button class="close-chat" id="closeChat">×</button>
+    </div>
+    <div id="chatMessages"></div>
+    <div class="chat-input-container">
+        <input type="text" id="chatInput" placeholder="메시지 입력..." disabled />
+        <button id="sendButton" disabled>➤</button>
+    </div>
+</div>
+
+<!-- 사용자 목록 패널 -->
+<div class="users-panel" id="usersPanel">
+    <div class="users-header">
+        <h3>접속자 목록</h3>
+        <button class="close-users" id="closeUsers">×</button>
+    </div>
+    <ul id="userList"></ul>
+</div>
+
+<!-- 오버레이 -->
+<div class="overlay" id="overlay"></div>
+
+<script>
+    // DOM 요소
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const startButton = document.getElementById('startButton');
+    const callButton = document.getElementById('callButton');
+    const hangupButton = document.getElementById('hangupButton');
+    const chatButton = document.getElementById('chatButton');
+    const usersButton = document.getElementById('usersButton');
+    const statusDiv = document.getElementById('status');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatInput = document.getElementById('chatInput');
+    const sendButton = document.getElementById('sendButton');
+    const chatPanel = document.getElementById('chatPanel');
+    const closeChat = document.getElementById('closeChat');
+    const usersPanel = document.getElementById('usersPanel');
+    const closeUsers = document.getElementById('closeUsers');
+    const userList = document.getElementById('userList');
+    const overlay = document.getElementById('overlay');
+
+    // 변수 초기화
+    let localStream;
+    let peerConnection;
+    let websocket;
+    let selectedUserId;
+    let mySessionId;
+    let isChatOpen = false;
+    let isUsersOpen = false;
+
+    // WebRTC 구성
+    const configuration = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+    };
+
+    // 패널 제어 함수
+    function toggleChatPanel() {
+        chatPanel.classList.toggle('active');
+        overlay.classList.toggle('active');
+        isChatOpen = chatPanel.classList.contains('active');
+        if (isChatOpen && isUsersOpen) {
+            toggleUsersPanel();
+        }
+
+        if (isChatOpen) {
+            chatInput.focus();
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+
+    function toggleUsersPanel() {
+        usersPanel.classList.toggle('active');
+        overlay.classList.toggle('active');
+        isUsersOpen = usersPanel.classList.contains('active');
+        if (isUsersOpen && isChatOpen) {
+            toggleChatPanel();
+        }
+    }
+
+    // 이벤트 리스너
+    startButton.addEventListener('click', startVideo);
+    callButton.addEventListener('click', startCall);
+    hangupButton.addEventListener('click', hangup);
+    chatButton.addEventListener('click', toggleChatPanel);
+    usersButton.addEventListener('click', toggleUsersPanel);
+    closeChat.addEventListener('click', toggleChatPanel);
+    closeUsers.addEventListener('click', toggleUsersPanel);
+    overlay.addEventListener('click', () => {
+        if (isChatOpen) toggleChatPanel();
+        if (isUsersOpen) toggleUsersPanel();
+    });
+
+    // 채팅 이벤트
+    sendButton.addEventListener('click', sendChatMessage);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendChatMessage();
+        }
+    });
+
+    // 비디오 스트림 시작
+    async function startVideo() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user" }, // 전면 카메라 사용
+                audio: true
+            });
+            localVideo.srcObject = localStream;
+
+            startButton.disabled = true;
+            startButton.classList.add('disabled');
+            callButton.disabled = false;
+            callButton.classList.remove('disabled');
+
+            statusDiv.textContent = '카메라 준비 완료. 연결 중...';
+
+            // 시그널링 서버 연결
+            connectSignaling();
+        } catch (error) {
+            console.error('미디어 스트림 획득 오류:', error);
+            statusDiv.textContent = `카메라/마이크 접근 오류: ${error.message}`;
+            alert('카메라 또는 마이크 접근이 거부되었습니다.');
+        }
+    }
+
+    // 시그널링 서버 연결
+    function connectSignaling() {
+        const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${location.host}/signal`;
+
+        websocket = new WebSocket(wsUrl);
+
+        websocket.onopen = () => {
+            statusDiv.textContent = '서버에 연결되었습니다.';
+            chatInput.disabled = false;
+            sendButton.disabled = false;
+        };
+
+        websocket.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            console.log('메시지 수신:', message);
+
+            switch(message.type) {
+                case 'user_count':
+                    mySessionId = message.sessionId || websocket._socket.id;
+                    statusDiv.textContent = `${message.count}명 접속 중`;
+                    break;
+
+                case 'new_user':
+                    addUser(message.id);
+                    break;
+
+                case 'user_left':
+                    removeUser(message.id);
+                    if (selectedUserId === message.id) {
+                        hangup();
+                    }
+                    break;
+
+                case 'chat':
+                    displayChatMessage(message);
+                    break;
+
+                case 'offer':
+                    handleOffer(message);
+                    break;
+
+                case 'answer':
+                    handleAnswer(message);
+                    break;
+
+                case 'ice_candidate':
+                    handleIceCandidate(message);
+                    break;
+
+                case 'hang_up':
+                    if (message.from === selectedUserId) {
+                        hangup();
+                        statusDiv.textContent = '상대방이 통화를 종료했습니다.';
+                    }
+                    break;
+
+                default:
+                    console.log('알 수 없는 메시지 유형:', message.type);
+            }
+        };
+
+        websocket.onclose = () => {
+            statusDiv.textContent = '서버 연결이 끊겼습니다.';
+            chatInput.disabled = true;
+            sendButton.disabled = true;
+        };
+
+        websocket.onerror = (error) => {
+            statusDiv.textContent = '서버 연결 오류';
+            console.error('WebSocket 오류:', error);
+            chatInput.disabled = true;
+            sendButton.disabled = true;
+        };
+    }
+
+    // 채팅 메시지 전송
+    function sendChatMessage() {
+        const messageText = chatInput.value.trim();
+        if (messageText && websocket && websocket.readyState === WebSocket.OPEN) {
+            const chatMessage = {
+                type: 'chat',
+                message: messageText,
+                timestamp: new Date().toISOString()
+            };
+
+            // 특정 상대방과 통화 중이면 해당 상대에게만 메시지 전송
+            if (selectedUserId) {
+                chatMessage.target = selectedUserId;
+            }
+
+            websocket.send(JSON.stringify(chatMessage));
+
+            // 내 메시지 즉시 표시
+            displayChatMessage({
+                ...chatMessage,
+                from: 'me'
+            });
+
+            chatInput.value = '';
+        }
+    }
+
+    // 채팅 메시지 표시
+    function displayChatMessage(message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'chat-message';
+
+        // 내가 보낸 메시지인지 확인
+        const isMyMessage = message.from === 'me' || message.from === mySessionId;
+        messageDiv.classList.add(isMyMessage ? 'mine' : 'others');
+
+        const senderDiv = document.createElement('div');
+        senderDiv.className = 'sender';
+        senderDiv.textContent = isMyMessage ? '나' : `상대방`;
+
+        const contentDiv = document.createElement('div');
+        contentDiv.textContent = message.message;
+
+        messageDiv.appendChild(senderDiv);
+        messageDiv.appendChild(contentDiv);
+
+        chatMessages.appendChild(messageDiv);
+
+        // 스크롤을 최신 메시지 위치로 이동
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // 채팅 패널이 닫혀있으면 알림
+        if (!isChatOpen) {
+            chatButton.innerHTML = '💬 <span style="position:absolute;top:0;right:0;width:10px;height:10px;background:red;border-radius:50%;"></span>';
+            // 진동 알림 (모바일)
+            if (navigator.vibrate) {
+                navigator.vibrate(100);
+            }
+        }
+    }
+
+    // 사용자 목록에 추가
+    function addUser(userId) {
+        if (userId !== mySessionId && !document.getElementById(`user-${userId}`)) {
+            const li = document.createElement('li');
+            li.id = `user-${userId}`;
+            li.className = 'user-item';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'user-avatar';
+            avatar.textContent = userId.slice(0, 2).toUpperCase();
+
+            const userInfo = document.createElement('div');
+            userInfo.className = 'user-info';
+
+            const userName = document.createElement('div');
+            userName.className = 'user-name';
+            userName.textContent = `사용자 ${userId.slice(0, 8)}`;
+
+            userInfo.appendChild(userName);
+
+            const callBtn = document.createElement('button');
+            callBtn.className = 'call-user';
+            callBtn.textContent = '통화';
+            callBtn.addEventListener('click', () => {
+                selectedUserId = userId;
+                startCall();
+                toggleUsersPanel();
+            });
+
+            li.appendChild(avatar);
+            li.appendChild(userInfo);
+            li.appendChild(callBtn);
+            userList.appendChild(li);
+        }
+    }
+
+    // 사용자 목록에서 제거
+    function removeUser(userId) {
+        const userElement = document.getElementById(`user-${userId}`);
+        if (userElement) {
+            userList.removeChild(userElement);
+        }
+    }
+
+    // 피어 연결 생성
+    function createPeerConnection() {
+        peerConnection = new RTCPeerConnection(configuration);
+
+        // 로컬 스트림 추가
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+
+        // ICE 후보 이벤트
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                sendMessage({
+                    type: 'ice_candidate',
+                    candidate: event.candidate,
+                    target: selectedUserId
+                });
+            }
+        };
+
+        // 원격 스트림 이벤트
+        peerConnection.ontrack = (event) => {
+            if (event.streams && event.streams[0]) {
+                remoteVideo.srcObject = event.streams[0];
+            }
+        };
+
+        // 연결 상태 변경 이벤트
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log('ICE 연결 상태 변경:', peerConnection.iceConnectionState);
+            if (peerConnection.iceConnectionState === 'connected') {
+                statusDiv.textContent = '통화 연결됨';
+            } else if (peerConnection.iceConnectionState === 'disconnected') {
+                statusDiv.textContent = '통화 연결 끊김';
+            } else if (peerConnection.iceConnectionState === 'failed') {
+                statusDiv.textContent = '통화 연결 실패';
+                hangup();
+            }
+        };
+    }
+
+    // 통화 시작
+    async function startCall() {
+        if (!selectedUserId && userList.children.length > 0) {
+            // 사용자가 선택되지 않았으면 첫 번째 사용자 선택
+            const firstUser = userList.children[0];
+            const userId = firstUser.id.replace('user-', '');
+            selectedUserId = userId;
+        }
+
+        if (!selectedUserId) {
+            alert('통화할 상대방이 없습니다.');
+            return;
+        }
+
+        createPeerConnection();
+
+        try {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            sendMessage({
+                type: 'offer',
+                sdp: peerConnection.localDescription,
+                target: selectedUserId
+            });
+
+            callButton.disabled = true;
+            callButton.classList.add('disabled');
+            hangupButton.disabled = false;
+            hangupButton.classList.remove('disabled');
+            statusDiv.textContent = '통화 연결 중...';
+        } catch (error) {
+            console.error('Offer 생성 오류:', error);
+            statusDiv.textContent = `통화 연결 오류: ${error.message}`;
+        }
+    }
+
+    // Offer 처리
+    async function handleOffer(message) {
+        selectedUserId = message.from;
+        createPeerConnection();
+
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            sendMessage({
+                type: 'answer',
+                sdp: peerConnection.localDescription,
+                target: message.from
+            });
+
+            callButton.disabled = true;
+            callButton.classList.add('disabled');
+            hangupButton.disabled = false;
+            hangupButton.classList.remove('disabled');
+            statusDiv.textContent = '통화 연결 중...';
+        } catch (error) {
+            console.error('Answer 생성 오류:', error);
+            statusDiv.textContent = `통화 응답 오류: ${error.message}`;
+        }
+    }
+
+    // Answer 처리
+    async function handleAnswer(message) {
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp));
+            statusDiv.textContent = '통화 연결됨';
+        } catch (error) {
+            console.error('RemoteDescription 설정 오류:', error);
+            statusDiv.textContent = `원격 응답 처리 오류: ${error.message}`;
+        }
+    }
+
+    // ICE 후보 처리
+    async function handleIceCandidate(message) {
+        try {
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate));
+            }
+        } catch (error) {
+            console.error('ICE 후보 추가 오류:', error);
+        }
+    }
+
+    // 메시지 전송
+    function sendMessage(message) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify(message));
+            console.log('메시지 전송:', message);
+        }
+    }
+
+    // 통화 종료
+    function hangup() {
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+
+        remoteVideo.srcObject = null;
+        callButton.disabled = false;
+        callButton.classList.remove('disabled');
+        hangupButton.disabled = true;
+        hangupButton.classList.add('disabled');
+
+        sendMessage({
+            type: 'hang_up',
+            target: selectedUserId
+        });
+
+        selectedUserId = null;
+        statusDiv.textContent = '통화가 종료되었습니다.';
+    }
+
+    // 모바일 디바이스 회전 처리
+    window.addEventListener('orientationchange', () => {
+        // 방향 전환 시 비디오 크기 조정
+        setTimeout(() => {
+            const videoContainer = document.querySelector('.videos-container');
+            if (window.orientation === 90 || window.orientation === -90) {
+                // 가로 모드
+                videoContainer.style.height = `${window.innerHeight - 80}px`;
+            } else {
+                // 세로 모드
+                videoContainer.style.height = '';
+            }
+        }, 300);
+    });
+
+    // iOS Safari 전체 화면 이슈 처리
+    function fixIOSViewport() {
+        document.documentElement.style.height = `${window.innerHeight}px`;
+    }
+
+    window.addEventListener('resize', fixIOSViewport);
+    fixIOSViewport();
+
+    // 앱 시작 시 알림
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(() => {
+            console.log('Service Worker 등록 성공');
+        });
+    }
+
+    // 브라우저가 닫힐 때 연결 정리
+    window.addEventListener('beforeunload', () => {
+        if (peerConnection) {
+            peerConnection.close();
+        }
+        if (websocket) {
+            websocket.close();
+        }
+    });
+</script>
+</body>
+</html>
